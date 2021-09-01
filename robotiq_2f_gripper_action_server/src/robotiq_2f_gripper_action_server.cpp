@@ -25,7 +25,7 @@ namespace
     result.rACT = 0x1; // active gripper
     result.rGTO = 0x1; // go to position
     result.rATR = 0x0; // No emergency release
-    result.rSP = 128; // Middle ground speed
+    result.rSP = 255; // Middle ground speed
     
     if (goal.command.position > params.max_gap_ || goal.command.position < params.min_gap_)
     {
@@ -101,16 +101,50 @@ Robotiq2FGripperActionServer::Robotiq2FGripperActionServer(const std::string& na
   state_sub_ = nh_.subscribe("input", 1, &Robotiq2FGripperActionServer::analysisCB, this);
   goal_pub_ = nh_.advertise<GripperOutput>("output", 1);
 
+//  // Check for errors
+//  if (current_reg_state_.gFLT)
+//  {
+//    ROS_WARN("%s faulted with code: %x", action_name_.c_str(), current_reg_state_.gFLT);
+//    while (current_reg_state_.gFLT)
+//    {
+//      reset();
+//      ros::Duration(0.1).sleep();
+//    }
+//    ROS_INFO(" Successfully clear fault, reset gripper");
+//  }
+  reset();
+  ROS_INFO("reset gripper before active");
+//  ros::Duration(0.1).sleep();
+
   as_.start();
+  ROS_INFO(" Successfully start action %s", action_name_.c_str());
+
+//  while ( !(current_reg_state_.gSTA == 0x3 && current_reg_state_.gACT == 0x1) )
+//  {
+//    // If it hasn't been asked, active it
+//    issueActivation();
+//    ROS_INFO(" gSTA is  %x, gACT is  %x, %d, %d", current_reg_state_.gSTA, current_reg_state_.gACT,  current_reg_state_.gGTO,
+//     current_reg_state_.gFLT);
+//    ros::Duration(0.1).sleep();
+//  }
+//  ROS_INFO(" Successfully activated gripper ");
 }
 
 void Robotiq2FGripperActionServer::goalCB()
 {
   // Check to see if the gripper is in an active state where it can take goals
+//  while (current_reg_state_.gSTA != 0x3 && goal_reg_state_.rACT != 0x1)
+//  {
+//    // If it hasn't been asked, active it
+//    issueActivation();
+//    ros::Duration(0.01).sleep();
+//  }
   if (current_reg_state_.gSTA != 0x3)
   {
     ROS_WARN("%s could not accept goal because the gripper is not yet active", action_name_.c_str());
-    return;
+//    return;
+    issueActivation();
+    ros::Duration(0.1).sleep();
   }
 
   GripperCommandGoal current_goal (*(as_.acceptNewGoal()));
@@ -143,6 +177,22 @@ void Robotiq2FGripperActionServer::analysisCB(const GripperInput::ConstPtr& msg)
 
   if (!as_.isActive()) return;
 
+    // Check for errors
+  if (current_reg_state_.gFLT)
+  {
+    ROS_WARN("%s faulted with code: %x", action_name_.c_str(), current_reg_state_.gFLT);
+     return;
+//    while (current_reg_state_.gFLT)
+//    {
+//      reset();
+//      ros::Duration(0.1).sleep();
+//    }
+//    reset();
+//    ros::Duration(0.1).sleep();
+////    issueActivation();
+////    ros::Duration(0.1).sleep();
+//    ROS_INFO(" Successfully clear fault, reset and activate gripper");
+  }
   // Check to see if the gripper is in its activated state
   if (current_reg_state_.gSTA != 0x3)
   {
@@ -189,8 +239,27 @@ void Robotiq2FGripperActionServer::issueActivation()
   ROS_INFO("Activating gripper for gripper action server: %s", action_name_.c_str());
   GripperOutput out;
   out.rACT = 0x1;
+  out.rGTO = 0x1; // go to position
+//  out.rPR = 0;
   // other params should be zero
   goal_reg_state_ = out;
   goal_pub_.publish(out);
+}
+
+void Robotiq2FGripperActionServer::reset()
+{
+  ROS_INFO("Resset gripper for gripper action server: %s", action_name_.c_str());
+  GripperOutput out;
+  out.rACT = 0x0;
+  // other params should be zero
+  goal_reg_state_ = out;
+  ros::Duration timeout = ros::Duration(1.0);
+  ros::Time start_time = ros::Time::now();
+  while(ros::Time::now()-start_time < timeout)
+  {
+    goal_pub_.publish(out);
+    ros::Duration(0.5).sleep();
+  }
+
 }
 } // end robotiq_2f_gripper_action_server namespace

@@ -6,9 +6,9 @@ namespace
   robotiq_2f_gripper_action_server::Robotiq2FGripperParams c2_85_defaults()
   {
     robotiq_2f_gripper_action_server::Robotiq2FGripperParams params;
-    params.min_gap_ = -.017;
-    params.max_gap_ = 0.085;
-    params.min_effort_ = 40.0; // This is a guess. Could not find data with quick search.
+    params.min_gap_ = 0.0;
+    params.max_gap_ = 0.051;
+    params.min_effort_ = 20.0; // This is a guess. Could not find data with quick search.
     params.max_effort_ = 100.0;
 
     return params;
@@ -25,7 +25,8 @@ int main(int argc, char** argv)
 
   std::string gripper_name;
   private_nh.param<std::string>("gripper_name", gripper_name, "gripper");
-
+  std::string ns = ros::this_node::getName();
+  ROS_INFO("node name is %s", ns.c_str());
   // Fill out 2F-Gripper Params
   robotiq_2f_gripper_action_server::Robotiq2FGripperParams cparams = c2_85_defaults();
   
